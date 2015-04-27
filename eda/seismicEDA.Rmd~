@@ -1,0 +1,106 @@
+---
+title: 'Seismic Data -- Exploratory Data Analysis'
+author: "Doug Raffle"
+output: html_document
+---
+
+The purpose of this document is to explore a data set of $20,000$
+seismic events obtained from the U.S. Geological Survey.
+
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+library(tidyr, , warn.conflicts = FALSE)
+library(ggplot2)
+library(GGally)
+seismic <- read.csv("seismic_data.csv")
+dim(seismic)
+summary(seismic)
+```
+
+Definitions of these terms can be found
+[here](http://earthquake.usgs.gov/earthquakes/feed/v1.0/glossary.php).
+
+Several of these variable describe the measurements and not the
+seismic event, so we'll reduce the data set.
+
+```{r warning = FALSE}
+seismic <- seismic %>%
+    select(-magType, -nst, -gap, -dmin, -net, -updated) %>%
+    mutate(type = factor(type))
+numeric.cols <- sapply(seismic, function(col) is.numeric(col))
+numeric.cols[2:3] <- FALSE
+cor(na.omit(seismic[numeric.cols]))
+ggplot(seismic, aes(x = type, fill = type)) + geom_bar() +
+    coord_flip()
+```
+
+We can see that the vast majority of events are earthquakes. Let's
+take a look at any relationships between our variables.
+
+```{r, warning = FALSE}
+ggpairs(seismic[, numeric.cols])
+ggplot(seismic, aes(x = mag)) +
+    geom_histogram(aes(y = ..density..), binwidth = 0.25) +
+    facet_wrap(~type, ncol = 2)
+ggplot(seismic, aes(x = depth)) +
+    geom_histogram(aes(y = ..density..), binwidth = 15) +
+    facet_wrap(~type, ncol = 2)
+ggplot(seismic, aes(x = rms)) +
+    geom_histogram(aes(y = ..density..), binwidth = 0.2) +
+    facet_wrap(~type, ncol = 2)
+```
+
+The overwhelming number of earthquakes is making it difficult to
+examine the properties of our other variable types. One option would
+be to examine the other types without the earthquakes.  This, however,
+might be too drastic in that we won't be able to find relationships
+between earthquakes and our other variables.
+
+By mapping the data, a more interesting solution presents itself.  It
+looks like the only place where the reporting networks gave us
+non-earthquake events is in the continental United States.  If we want
+to find relationships between the event types, it might be wise to
+restrict our sample to only those events which occurred in this
+region.
+
+```{r}
+seismic <- seismic %>%
+    filter(latitude < 49,
+           latitude > 18,
+           longitude < -63.37,
+           longitude > -124.6) %>%
+    mutate(type = factor(type))
+summary(seismic)
+numeric.cols <- sapply(seismic, function(col) is.numeric(col))
+numeric.cols[2:3] <- FALSE
+cor(na.omit(seismic[numeric.cols]))
+```
+
+```{r, warning = FALSE}
+ggplot(seismic, aes(x = type, fill = type)) + geom_bar() +
+    coord_flip()
+```
+
+While we still mostly have earthquakes, we do see a higher proportion
+of other events.
+
+Now that we've restricted our sample, we can try the graphs again.
+
+```{r, warning = FALSE}
+ggpairs(seismic[, numeric.cols])
+ggplot(seismic, aes(x = mag)) +
+    geom_histogram(aes(y = ..density..), binwidth = 0.25) +
+    facet_wrap(~type, ncol = 2)
+ggplot(seismic, aes(x = depth)) +
+    geom_histogram(aes(y = ..density..), binwidth = 15) +
+    facet_wrap(~type, ncol = 2)
+ggplot(seismic, aes(x = rms)) +
+    geom_histogram(aes(y = ..density..), binwidth = 0.2) +
+    facet_wrap(~type, ncol = 2)
+```
+
+We certainly see more of the variability in our variables with this
+restricted sample. For tasks like predicting an event type, this will
+be essential.
+
+
